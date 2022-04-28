@@ -1,3 +1,4 @@
+use image::RgbaImage;
 use visioncortex::color_clusters::{Runner, RunnerConfig, HIERARCHICAL_MAX};
 use visioncortex::{Color, ColorImage, ColorName};
 
@@ -5,17 +6,17 @@ use super::config::{ColorMode, Config, ConverterConfig, Hierarchical};
 use super::svg::SvgFile;
 
 /// Convert an image file into svg file
-pub fn convert_image_to_svg(config: Config, image_bytes: &[u8]) -> Result<String, String> {
+pub fn convert_image_to_svg(config: Config, image: RgbaImage) -> Result<String, String> {
     let config = config.into_converter_config();
     match config.color_mode {
-        ColorMode::Color => color_image_to_svg(config, image_bytes),
-        ColorMode::Binary => binary_image_to_svg(config, image_bytes),
+        ColorMode::Color => color_image_to_svg(config, image),
+        ColorMode::Binary => binary_image_to_svg(config, image),
     }
 }
 
-fn color_image_to_svg(config: ConverterConfig, image_bytes: &[u8]) -> Result<String, String> {
+fn color_image_to_svg(config: ConverterConfig, image: RgbaImage) -> Result<String, String> {
     let (img, width, height);
-    match read_image(image_bytes) {
+    match prepare_image(image) {
         Ok(values) => {
             img = values.0;
             width = values.1;
@@ -84,9 +85,9 @@ fn color_image_to_svg(config: ConverterConfig, image_bytes: &[u8]) -> Result<Str
     Ok(svg.to_string())
 }
 
-fn binary_image_to_svg(config: ConverterConfig, image_bytes: &[u8]) -> Result<String, String> {
+fn binary_image_to_svg(config: ConverterConfig, image: RgbaImage) -> Result<String, String> {
     let (img, width, height);
-    match read_image(image_bytes) {
+    match prepare_image(image) {
         Ok(values) => {
             img = values.0;
             width = values.1;
@@ -116,13 +117,7 @@ fn binary_image_to_svg(config: ConverterConfig, image_bytes: &[u8]) -> Result<St
     Ok(svg.to_string())
 }
 
-fn read_image(image_bytes: &[u8]) -> Result<(ColorImage, usize, usize), String> {
-    let img = image::load_from_memory(image_bytes);
-    let img = match img {
-        Ok(file) => file.to_rgba8(),
-        Err(_) => return Err(String::from("No image file found at specified input path")),
-    };
-
+fn prepare_image(img: RgbaImage) -> Result<(ColorImage, usize, usize), String> {
     let (width, height) = (img.width() as usize, img.height() as usize);
     let img = ColorImage {
         pixels: img.as_raw().to_vec(),
